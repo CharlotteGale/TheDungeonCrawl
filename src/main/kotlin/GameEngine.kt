@@ -45,7 +45,7 @@ class GameEngine {
                     "\nSlumped against the western wall is a skeleton, its bony fingers still curled around nothing. Whatever it was carrying is long gone. " +
                     "\nBeside it sits a wooden chest, its lid closed but unlocked. " +
                     "\nBehind you to the south, a sliver of daylight cuts through the gloom — the way out.",
-            exits = mapOf("north" to "altar_room", "east" to "corridor", "south" to "exit", "west" to "mess_room"),
+            exits = mapOf("north" to "altar_room", "east" to "corridor", "south" to "exit"),
             items = mutableListOf()
         ),
         "altar_room" to Room(
@@ -167,6 +167,12 @@ class GameEngine {
     }
 
     fun handleGo(direction: String) {
+
+        if (currentRoom().id == "entrance" && direction == "west") {
+            println("\nYou stand before the door. " +
+                    "\nIt definitely isn't going to open without help.")
+            return
+        }
         val exit = currentRoom().exits[direction]
         if (exit != null) {
             player.currentRoomId = exit
