@@ -12,6 +12,7 @@ object CommandParser {
             "inventory", "inv", "i" -> Command.Inventory
             "take", "pick" -> Command.Take(argument)
             "drop" -> Command.Drop(argument)
+            "open", "pry", "try" -> Command.Open(argument)
             "help", "h", "?" -> Command.Help
             "quit", "exit", "q" -> Command.Quit
             else -> Command.Unknown
@@ -23,6 +24,8 @@ sealed class Command {
     data class Go(val direction: String) : Command()
     data class Take(val itemName: String) : Command()
     data class Drop(val itemName: String) : Command()
+    data class Open(val target: String) : Command()
+    data class Loot(val target: String) : Command()
     object Look : Command()
     object Inventory : Command()
     object Help : Command()
@@ -154,8 +157,10 @@ class GameEngine {
                 println("You flee the dungeon... coward.")
                 System.exit(0)
             }
+            is Command.Open -> handleOpen(command.target)
             is Command.Take,
             is Command.Drop,
+            is Command.Loot,
             is Command.Inventory -> println("Not implemented yet")
             is Command.Unknown -> println("You mutter to yourself. Nothing happens. \nType 'help' for a list of commands.")
         }
@@ -184,6 +189,44 @@ class GameEngine {
         println("  help            — show this list")
         println("  quit            — exit the game")
 
+    }
+
+    fun handleOpen(target: String) {
+        when (target) {
+            "door" -> {
+                val currentExits = currentRoom().exits
+                if (currentRoom().id == "entrance") {
+                    println("\nYou throw your shoulder against the door. The rusted hinges groan but don't give. " +
+                            "\nIt isn't going anywhere without help.")
+                } else if (currentExits.containsValue("mess_room") || currentExits.containsValue("entrance")) {
+                    println("\nThe door is jammed solid in its frame.")
+                } else {
+                    println("\nThere's no door to open here.")
+                }
+            }
+            "chest" -> {
+                when (currentRoom().id) {
+                    "entrance" -> {
+                        println(
+                            "\nYou lift the lid of the wooden chest. " +
+                                    "\nInside, sitting on a bed of moldered cloth, is a scroll tied with a leather cord."
+                        )
+                    }
+                    "barracks" -> {
+                        println("\nThe iron clasps are fastened tight. The lid doesn't budge.")
+                    }
+                    else -> {
+                        println("\nThere's no chest to open here.")
+                    }
+                }
+            }
+            "" -> {
+                println("\nOpen what exactly?")
+            }
+            else -> {
+                println("\nYou can't open that.")
+            }
+        }
     }
 
     fun currentRoom(): Room {
