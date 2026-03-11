@@ -46,7 +46,9 @@ class GameEngine {
                     "\nBeside it sits a wooden chest, its lid closed but unlocked. " +
                     "\nBehind you to the south, a sliver of daylight cuts through the gloom — the way out.",
             exits = mapOf("north" to "altar_room", "east" to "corridor", "south" to "exit"),
-            items = mutableListOf()
+            items = mutableListOf(
+                Item(id = "scroll", name = "Scroll", description = "A rolled scroll tied with a leather cord.")
+            )
         ),
         "altar_room" to Room(
             id = "altar_room",
@@ -57,7 +59,9 @@ class GameEngine {
                     "\nTo the south, the crumbling archway leads back to the entrance chamber. " +
                     "\nIn the alcove beside it, a torch sits unlit in its iron bracket.",
             exits = mapOf("south" to "entrance"),
-            items = mutableListOf()
+            items = mutableListOf(
+                Item(id = "torch", name = "Unlit Torch", description = "A torch, cold and unlit. It looks like it would burn well enough.")
+            )
         ),
         "corridor" to Room(
             id = "corridor",
@@ -85,7 +89,9 @@ class GameEngine {
                     "\nA short sword leans against the far wall, its blade dulled but intact. " +
                     "\nTo the west, the corridor winds back toward the entrance.",
             exits = mapOf("west" to "corridor"),
-            items = mutableListOf()
+            items = mutableListOf(
+                Item(id = "short_sword", name = "Short Sword", description = "A short sword, its blade dulled but intact.")
+            )
         ),
         "mess_room" to Room(
             id = "mess_room",
@@ -113,7 +119,9 @@ class GameEngine {
                     "\nYou can't make out what made it in the dark. " +
                     "\nTo the north, the mess room.",
             exits = mapOf("north" to "mess_room"),
-            items = mutableListOf()
+            items = mutableListOf(
+                Item(id = "apple", name = "Apple", description = "Two apples, fresher than they have any right to be.")
+            )
         ),
         "exit" to Room(
             id = "exit",
@@ -158,10 +166,10 @@ class GameEngine {
                 System.exit(0)
             }
             is Command.Open -> handleOpen(command.target)
-            is Command.Take,
-            is Command.Drop,
-            is Command.Loot,
-            is Command.Inventory -> println("Not implemented yet")
+            is Command.Take -> handleTake(command.itemName)
+            is Command.Drop -> handleDrop(command.itemName)
+            is Command.Loot -> println("\nNot implemented yet!")
+            is Command.Inventory -> handleInventory()
             is Command.Unknown -> println("You mutter to yourself. Nothing happens. \nType 'help' for a list of commands.")
         }
     }
@@ -188,13 +196,36 @@ class GameEngine {
         println("\nExits: ${room.exits.keys.joinToString(", ")}")
     }
 
-    fun printHelp() {
-        println("\nCommands:")
-        println("  go <direction>  — move in a direction (north, south, east, west)")
-        println("  look            — describe your current surroundings")
-        println("  help            — show this list")
-        println("  quit            — exit the game")
+    fun handleTake(itemName: String) {
+        val room = currentRoom()
+        val item = room.items.find { it.id.lowercase() == itemName }
+        if (item != null) {
+            room.items.remove(item)
+            player.takeItem(item)
+            println("\nYou pick up the ${item.name}.")
+        } else {
+            println("\nThere's nothing to take.")
+        }
+    }
 
+    fun handleDrop(itemName: String) {
+        val item = player.inventory.find { it.id.lowercase() == itemName }
+        if (item != null) {
+            player.dropItem(item.id)
+            currentRoom().items.add(item)
+            println("\nYou drop the ${item.name}.")
+        } else {
+            println("\nYou've not got a $itemName.")
+        }
+    }
+
+    fun handleInventory() {
+        if(player.inventory.isEmpty()) {
+            println("You aren't carrying anything.")
+        } else {
+            println("\nYou are carrying:")
+            player.inventory.forEach { println(" - ${it.name}") }
+        }
     }
 
     fun handleOpen(target: String) {
@@ -233,6 +264,15 @@ class GameEngine {
                 println("\nYou can't open that.")
             }
         }
+    }
+
+    fun printHelp() {
+        println("\nCommands:")
+        println("  go <direction>  — move in a direction (north, south, east, west)")
+        println("  look            — describe your current surroundings")
+        println("  help            — show this list")
+        println("  quit            — exit the game")
+
     }
 
     fun currentRoom(): Room {
