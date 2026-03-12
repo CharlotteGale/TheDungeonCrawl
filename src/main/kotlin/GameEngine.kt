@@ -362,9 +362,8 @@ class GameEngine {
                         if (chest.contents.isEmpty()) {
                             println("\nYou open the ${chest.name}. It's empty.")
                         } else {
-                            println("\nYou lift the lid of the ${chest.name}. Inside you find:")
-                            chest.contents.forEach { item -> println("  - ${item.name}") }
-                            println("\nType 'examine <chest name>' to inspect the contents, or 'loot <item>' to take something.")
+                            println("\nYou lift the lid of the ${chest.name}.")
+                            println("\nType 'examine ${chest.name.lowercase()}' to inspect the contents.")
                         }
                     }
                 }
