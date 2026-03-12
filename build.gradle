@@ -20,6 +20,8 @@ application {
 
 tasks.named('run') {
     standardInput = System.in
+    outputs.upToDateWhen { false }
+    jvmArgs = ['-Dfile.encoding=UTF-8']
 }
 
 kotlin {
