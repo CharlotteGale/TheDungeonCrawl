@@ -51,12 +51,11 @@ class GameEngine {
                     "\nBeside it sits a wooden chest, its lid closed but unlocked. " +
                     "\nBehind you to the south, a sliver of daylight cuts through the gloom — the way out.",
             exits = mapOf("north" to "altar_room", "east" to "corridor", "south" to "exit"),
-            items = mutableListOf(
-                Item(id = "chest_2_key", name = "Tarnished Key", description = "A tarnished key, still attached to a leather fob bearing a faded insignia.")
-            ),
+            items = mutableListOf(),
             chests = mutableListOf(
                 Chest(
                     id = "wooden_chest",
+                    name = "Ornate Chest",
                     isLocked = false,
                     isOpen = false,
                     contents = mutableListOf(
@@ -131,6 +130,7 @@ class GameEngine {
             chests = mutableListOf(
                 Chest(
                     id = "chest_1",
+                    name = "Iron Chest",
                     isLocked = true,
                     contents = mutableListOf(
                         Item(
@@ -142,6 +142,7 @@ class GameEngine {
                 ),
                 Chest(
                     id = "chest_2",
+                    name = "Soldiers Chest",
                     isLocked = true,
                     contents = mutableListOf(
                         Item(
@@ -151,7 +152,7 @@ class GameEngine {
                         ),
                         Item(
                             id = "journal",
-                            name = "Soldier's Journal",
+                            name = "Soldiers Journal",
                             description = "A leather bound journal, its pages yellowed and brittle. " +
                                     "The last entry is dated, but the ink has run. " +
                                     "One word is still legible: 'below'."
@@ -203,6 +204,8 @@ class GameEngine {
     private val player = Player(currentRoomId = "entrance", inventory = mutableListOf())
 
     fun start() {
+        System.out.flush()
+        System.setOut(java.io.PrintStream(System.out, true, "UTF-8"))
         println("=================================")
         println("      THE DUNGEON CRAWL")
         println("=================================")
@@ -244,18 +247,25 @@ class GameEngine {
     }
 
     fun handleGo(direction: String) {
-
         if (currentRoom().id == "entrance" && direction == "west") {
-            println("\nYou stand before the door. " +
-                    "\nIt definitely isn't going to open without help.")
+            if (player.hasItem("mess_room_key")) {
+                player.dropItem("mess_room_key")
+                println("\nThe key grinds in the lock. The door swings open with a groan of rusty hinges.")
+                player.currentRoomId = "mess_room"
+                handleLook()
+            } else {
+                println("\nYou throw your shoulder against the door. The rusted hinges groan but don't give. " +
+                        "\nIt isn't going anywhere without help.")
+            }
             return
         }
+
         val exit = currentRoom().exits[direction]
         if (exit != null) {
             player.currentRoomId = exit
             handleLook()
         } else {
-            println("You can't go that way.")
+            println("\nYou can't go that way.")
         }
     }
 
@@ -264,20 +274,32 @@ class GameEngine {
         println("\n${room.description}")
 
         if (room.id == "altar_room" && player.hasItem("lit_torch")) {
-            println("\nThe torchlight catches something on the edges of the shadows - a small key glints on the stone floor beside the altar.")
+            println("\nThe torchlight catches something in the shadows of the alcove — a small key glints on the stone floor beside the bracket.")
+        }
+
+        if (room.chests.isNotEmpty()) {
+            println("\nChests in this room:")
+            room.chests.forEach { chest ->
+                val status = when {
+                    chest.isLocked -> "locked"
+                    chest.isOpen -> "open"
+                    else -> "unlocked"
+                }
+                println("  - ${chest.name} (${status})")
+            }
         }
 
         println("\nExits: ${room.exits.keys.joinToString(", ")}")
     }
 
     fun handleTake(itemName: String) {
-        val room = currentRoom()
-        val item = room.items.find { it.name.lowercase().contains(itemName.lowercase()) }
-
         if (itemName.isEmpty()) {
             println("\nTake what?")
             return
         }
+
+        val room = currentRoom()
+        val item = room.items.find { it.name.lowercase().contains(itemName.lowercase()) }
 
         if (item != null) {
             room.items.remove(item)
@@ -315,73 +337,81 @@ class GameEngine {
     }
 
     fun handleOpen(target: String) {
-        when (target) {
-            "door" -> {
-                val currentExits = currentRoom().exits
+        when {
+            target == "door" -> {
                 if (currentRoom().id == "entrance") {
-                    println("\nYou throw your shoulder against the door. The rusted hinges groan but don't give. " +
-                            "\nIt isn't going anywhere without help.")
-                } else if (currentExits.containsValue("mess_room") || currentExits.containsValue("entrance")) {
+                    println("\nTry heading west.")
+                } else if (currentRoom().exits.containsValue("mess_room") ||
+                    currentRoom().exits.containsValue("entrance")) {
                     println("\nThe door is jammed solid in its frame.")
                 } else {
                     println("\nThere's no door to open here.")
                 }
             }
-            "chest" -> {
-                val chest = currentRoom().chests.firstOrNull()
+            target.isEmpty() -> println("\nOpen what exactly?")
+            else -> {
+                val chest = currentRoom().chests.find {
+                    it.name.lowercase().contains(target.lowercase())
+                }
                 when {
-                    chest == null -> println("\nThere's no chest here.")
-                    chest.isOpen -> println("\nThe chest is already open.")
-                    chest.isLocked -> println("\nThe iron clasps are fastened tight. The lid doesn't budge.")
+                    chest == null -> println("\nThere's no chest called '$target' here.")
+                    chest.isOpen -> println("\nThe ${chest.name} is already open.")
+                    chest.isLocked -> println("\nThe iron clasps on the ${chest.name} are fastened tight. The lid doesn't budge.")
                     else -> {
                         chest.isOpen = true
                         if (chest.contents.isEmpty()) {
-                            println("\nYou open the chest. It's empty.")
+                            println("\nYou open the ${chest.name}. It's empty.")
                         } else {
-                            println("\nYou lift the lid. Inside you find:")
-                            chest.contents.forEach { println("  - ${it.name}") }
-                            println("\nType 'examine <item>' to inspect something, or 'loot chest' to take everything.")
+                            println("\nYou lift the lid of the ${chest.name}. Inside you find:")
+                            chest.contents.forEach { item -> println("  - ${item.name}") }
+                            println("\nType 'examine <chest name>' to inspect the contents, or 'loot <item>' to take something.")
                         }
                     }
                 }
             }
-            "" -> println("\nOpen what exactly?")
-            else -> println("\nYou can't open that.")
         }
     }
 
     fun handleExamine(target: String) {
-        when (target) {
-            "chest" -> {
-                val chest = currentRoom().chests.firstOrNull()
-                when {
-                    chest == null -> println("\nThere's no chest here.")
-                    !chest.isOpen -> println("\nThe chest is closed. Try opening it first.")
-                    chest.contents.isEmpty() -> println("\nThe chest is empty.")
-                    else -> {
-                        chest.isExamined = true
-                        println("\nInside the chest you find:")
-                        chest.contents.forEach { println("  - ${it.name}: ${it.description}") }
-                        println("\nType 'loot chest' to take everything, or 'loot <item>' to take something specific.")
-                    }
+        if (target.isEmpty()) {
+            println("\nExamine what exactly?")
+            return
+        }
+
+        // Check chests by name
+        val chest = currentRoom().chests.find { it.name.lowercase().contains(target.lowercase()) }
+        if (chest != null) {
+            when {
+                !chest.isOpen -> println("\nThe ${chest.name} is closed. Try opening it first.")
+                chest.contents.isEmpty() -> println("\nThe ${chest.name} is empty.")
+                else -> {
+                    chest.isExamined = true
+                    println("\nInside the ${chest.name} you find:")
+                    chest.contents.forEach { println("  - ${it.name}: ${it.description}") }
+                    println("\nType 'loot ${chest.name.lowercase()}' to take everything, or 'loot <item>' to take something specific.")
                 }
             }
-            "" -> println("\nExamine what exactly?")
-            else -> {
-                val roomItem = currentRoom().items.find { it.id.lowercase() == target }
-                val inventoryItem = player.inventory.find { it.id.lowercase() == target }
-                when {
-                    roomItem != null -> println("\n${roomItem.description}")
-                    inventoryItem != null -> println("\n${inventoryItem.description}")
-                    else -> println("\nYou can't examine that.")
-                }
-            }
+            return
+        }
+
+        // Check room items and inventory by name
+        val roomItem = currentRoom().items.find { it.name.lowercase().contains(target.lowercase()) }
+        val inventoryItem = player.inventory.find { it.name.lowercase().contains(target.lowercase()) }
+        when {
+            roomItem != null -> println("\n${roomItem.description}")
+            inventoryItem != null -> println("\n${inventoryItem.description}")
+            else -> println("\nYou can't examine that.")
         }
     }
 
     fun handleLoot(target: String) {
-        // Check lootables first
-        val lootable = currentRoom().lootables.find { it.id.lowercase() == target }
+        if (target.isEmpty()) {
+            println("\nLoot what exactly?")
+            return
+        }
+
+        // Check lootables by name
+        val lootable = currentRoom().lootables.find { it.name.lowercase().contains(target.lowercase()) }
         if (lootable != null) {
             when {
                 lootable.isLooted -> println("\nThere's nothing left on the ${lootable.name}.")
@@ -402,43 +432,40 @@ class GameEngine {
             return
         }
 
-        // Check chests
-        val chest = if (target == "chest") {
-            currentRoom().chests.firstOrNull()
-        } else {
-            currentRoom().chests.find { it.id.lowercase() == target }
+        // Check chests by name
+        val chest = currentRoom().chests.find { it.name.lowercase().contains(target.lowercase()) }
+        if (chest != null) {
+            when {
+                !chest.isOpen -> println("\nThe ${chest.name} is closed. Try opening it first.")
+                chest.contents.isEmpty() -> println("\nThe ${chest.name} is empty.")
+                !chest.isExamined -> println("\nYou haven't examined the contents yet. Try 'examine ${chest.name.lowercase()}' first.")
+                else -> {
+                    // Check if target is a specific item rather than the chest itself
+                    val chestItem = chest.contents.find { it.name.lowercase().contains(target.lowercase()) }
+                    if (chestItem != null) {
+                        chest.contents.remove(chestItem)
+                        player.takeItem(chestItem)
+                        println("\nYou take the ${chestItem.name}.")
+                    } else {
+                        val taken = chest.contents.toList()
+                        taken.forEach { player.takeItem(it) }
+                        chest.contents.clear()
+                        println("\nYou take everything from the ${chest.name}:")
+                        taken.forEach { println("  - ${it.name}") }
+                    }
+                }
+            }
+            return
         }
 
-        when {
-            chest == null -> println("\nThere's nothing to loot here.")
-            !chest.isOpen -> println("\nThe chest is closed. Try opening it first.")
-            chest.contents.isEmpty() -> println("\nThe chest is empty.")
-            target == "chest" || target == chest.id -> {
-                if (!chest.isExamined) {
-                    println("\nYou haven't examined the contents yet. Type 'examine chest' first.")
-                } else {
-                    val taken = chest.contents.toList()
-                    taken.forEach { player.takeItem(it) }
-                    chest.contents.clear()
-                    println("\nYou take everything from the chest:")
-                    taken.forEach { println("  - ${it.name}") }
-                }
-            }
-            else -> {
-                val item = chest.contents.find { it.id.lowercase() == target }
-                if (item != null) {
-                    chest.contents.remove(item)
-                    player.takeItem(item)
-                    println("\nYou take the ${item.name}.")
-                } else {
-                    println("\nThere's no $target in the chest.")
-                }
-            }
-        }
+        println("\nThere's nothing to loot here.")
     }
 
     fun handleUse(itemName: String) {
-        val item = player.inventory.find { it.id.lowercase() == itemName }
+        val item = player.inventory.find {
+            it.name.lowercase().contains(itemName.lowercase()) ||
+                    it.id.lowercase().contains(itemName.lowercase())
+        }
 
         if (item == null) {
             println("\nYou don't have a $itemName.")
@@ -469,19 +496,18 @@ class GameEngine {
                     } else {
                         chest.isLocked = false
                         player.dropItem(item.id)
-                        currentRoom().items.remove(item)
                         println("\nThe key turns smoothly. The chest unlocks with a heavy clunk.")
                     }
                     return
                 }
 
-                // Check west door
-                if (targetId == "mess_room" && currentRoom().id == "entrance") {
-                    handleGo("west")
-                    player.dropItem(item.id)
-                    println("\nThe key grinds in the lock. The door swings open with a groan of rusty hinges.")
-                    return
-                }
+//                // Check west door
+//                if (targetId == "mess_room" && currentRoom().id == "entrance") {
+//                    handleGo("west")
+//                    player.dropItem(item.id)
+//                    println("\nThe key grinds in the lock. The door swings open with a groan of rusty hinges.")
+//                    return
+//                }
 
                 println("\nYou can't use that key here.")
             }
